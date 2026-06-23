@@ -1,0 +1,14 @@
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# 编译产物
+*.o
+*.a
+*.so
+*.exe
+build/
