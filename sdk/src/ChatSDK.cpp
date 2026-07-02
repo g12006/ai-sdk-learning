@@ -3,6 +3,7 @@
 #include "../include/SessionManager.h"
 #include "../include/DataManager.h"
 #include "../include/DeepSeekProvider.h"
+#include "../include/ChatGPTProvider.h"
 #include "../include/util/myLog.h"
 #include <map>
 
@@ -37,8 +38,10 @@ void ChatSDK::registerAllProvider()
     // DeepSeek
     _llmManager->registerProvider("deepseek", std::make_unique<DeepSeekProvider>());
 
-    // 其他 Provider（ChatGPT / Gemini / Ollama）待扩展，预留注释占位
-    // _llmManager->registerProvider("chatgpt", std::make_unique<ChatGPTProvider>());
+    // ChatGPT
+    _llmManager->registerProvider("chatgpt", std::make_unique<ChatGPTProvider>());
+
+    // Gemini / Ollama 待扩展
     // _llmManager->registerProvider("gemini",  std::make_unique<GeminiProvider>());
     // _llmManager->registerProvider("ollama",  std::make_unique<OllamaProvider>());
 
