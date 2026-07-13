@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <memory>
 #include "common.h"
 
 // 前向声明 sqlite3 结构体，避免直接引入 sqlite3.h

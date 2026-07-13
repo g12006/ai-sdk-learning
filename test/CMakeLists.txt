@@ -11,11 +11,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # 设置构建类型Debug
 set(CMAKE_BUILD_TYPE Debug)
 
-# 添加可执行文件（仅包含当前学习进度的 Provider）
+# 添加可执行文件（包含所有 Provider）
 add_executable(testLLM testLLM.cpp
     ../sdk/src/util/myLog.cpp
     ../sdk/src/DeepSeekProvider.cpp
     ../sdk/src/ChatGPTProvider.cpp
+    ../sdk/src/GeminiProvider.cpp
+    ../sdk/src/OllamaLLMProvider.cpp
     ../sdk/src/DataManager.cpp
     ../sdk/src/SessionManager.cpp
     ../sdk/src/LLMManager.cpp

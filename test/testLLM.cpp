@@ -25,6 +25,8 @@
 #include <spdlog/common.h>
 #include "../sdk/include/DeepSeekProvider.h"
 #include "../sdk/include/ChatGPTProvider.h"
+#include "../sdk/include/GeminiProvider.h"
+#include "../sdk/include/OllamaLLMProvider.h"
 #include "../sdk/include/util/myLog.h"
 #include "../sdk/include/ChatSDK.h"
 #include <iostream>
@@ -179,10 +181,10 @@ TEST(ChatGPTProviderTest, SendMessageWhenNotAvailable)
 }
 
 // ============================================================================
-// 三、真实 API 调用测试（需设置环境变量 + 取消 #if 1 → #if 0 注释）
+// 三、真实 API 调用测试（无对应环境变量时自动 SKIP，不会失败）
 // ============================================================================
 
-#if 0   // 改为 #if 1 启用真实 API 测试
+#if 1   // 启用真实 API 测试
 
 /**
  * @brief DeepSeek 真实 API：流式消息测试
@@ -196,7 +198,9 @@ TEST(DeepSeekProviderTest, SendMessageStreamRealApi)
     ASSERT_NE(provider, nullptr);
 
     const char* apiKey = std::getenv("deepseek_apikey");
-    ASSERT_NE(apiKey, nullptr) << "请设置环境变量 deepseek_apikey";
+    if (!apiKey) {
+        GTEST_SKIP() << "未设置环境变量 deepseek_apikey，跳过真实 API 测试";
+    }
 
     std::map<std::string, std::string> modelParam;
     modelParam["api_key"] = apiKey;
@@ -238,7 +242,9 @@ TEST(ChatGPTProviderTest, SendMessageStreamRealApi)
     ASSERT_NE(provider, nullptr);
 
     const char* apiKey = std::getenv("chatgpt_apikey");
-    ASSERT_NE(apiKey, nullptr) << "请设置环境变量 chatgpt_apikey";
+    if (!apiKey) {
+        GTEST_SKIP() << "未设置环境变量 chatgpt_apikey，跳过真实 API 测试";
+    }
 
     std::map<std::string, std::string> modelParam;
     modelParam["api_key"] = apiKey;
@@ -262,6 +268,91 @@ TEST(ChatGPTProviderTest, SendMessageStreamRealApi)
     };
     std::string fullData = provider->sendMessageStream(messages, requestParam, writeChunk);
     ASSERT_FALSE(fullData.empty());
+    INFO("response : {}", fullData);
+}
+
+/**
+ * @brief Gemini 真实 API：流式消息测试
+ *
+ * 前置条件：
+ *   export gemini_apikey="xxxxx"
+ *
+ * Gemini 使用 OpenAI 兼容端点 /v1beta/openai/chat/completions
+ */
+TEST(GeminiProviderTest, SendMessageStreamRealApi)
+{
+    auto provider = std::make_shared<ai_chat_sdk::GeminiProvider>();
+    ASSERT_NE(provider, nullptr);
+
+    const char* apiKey = std::getenv("gemini_apikey");
+    if (!apiKey) {
+        GTEST_SKIP() << "未设置环境变量 gemini_apikey，跳过真实 API 测试";
+    }
+
+    std::map<std::string, std::string> modelParam;
+    modelParam["api_key"] = apiKey;
+    modelParam["endpoint"] = "https://generativelanguage.googleapis.com";
+
+    provider->initModel(modelParam);
+    ASSERT_TRUE(provider->isAvailable());
+
+    std::map<std::string, std::string> requestParam = {
+        {"temperature", "0.7"},
+        {"max_tokens", "2048"}
+    };
+    std::vector<ai_chat_sdk::Message> messages;
+    messages.push_back({"user", "你是谁？"});
+
+    auto writeChunk = [&](const std::string& chunk, bool last) {
+        INFO("chunk : {}", chunk);
+        if (last) {
+            INFO("[DONE]");
+        }
+    };
+    std::string fullData = provider->sendMessageStream(messages, requestParam, writeChunk);
+    ASSERT_FALSE(fullData.empty());
+    INFO("response : {}", fullData);
+}
+
+/**
+ * @brief Ollama 本地服务：流式消息测试
+ *
+ * 前置条件：
+ *   - 本机已启动 Ollama 服务（默认 http://localhost:11434）
+ *   - 已拉取模型：ollama pull qwen2.5:0.5b（或其它小模型）
+ *
+ * 无 Ollama 服务时自动 SKIP，不会失败
+ */
+TEST(OllamaLLMProviderTest, SendMessageStreamLocal)
+{
+    auto provider = std::make_shared<ai_chat_sdk::OllamaLLMProvider>();
+    ASSERT_NE(provider, nullptr);
+
+    std::map<std::string, std::string> modelParam;
+    modelParam["model_name"] = "qwen2.5:0.5b";
+    modelParam["model_desc"] = "Ollama local model";
+    modelParam["endpoint"]  = "http://localhost:11434";
+
+    provider->initModel(modelParam);
+    ASSERT_TRUE(provider->isAvailable());
+
+    std::map<std::string, std::string> requestParam = {
+        {"temperature", "0.7"},
+        {"max_tokens", "2048"}
+    };
+    std::vector<ai_chat_sdk::Message> messages;
+    messages.push_back({"user", "你是谁？"});
+
+    auto writeChunk = [&](const std::string& chunk, bool last) {
+        INFO("chunk : {}", chunk);
+        if (last) {
+            INFO("[DONE]");
+        }
+    };
+    std::string fullData = provider->sendMessageStream(messages, requestParam, writeChunk);
+    if (fullData.empty()) {
+        GTEST_SKIP() << "本地无 Ollama 服务或模型未拉取，跳过";
+    }
     INFO("response : {}", fullData);
 }
 

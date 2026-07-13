@@ -4,6 +4,8 @@
 #include "../include/DataManager.h"
 #include "../include/DeepSeekProvider.h"
 #include "../include/ChatGPTProvider.h"
+#include "../include/GeminiProvider.h"
+#include "../include/OllamaLLMProvider.h"
 #include "../include/util/myLog.h"
 #include <map>
 
@@ -41,9 +43,11 @@ void ChatSDK::registerAllProvider()
     // ChatGPT
     _llmManager->registerProvider("chatgpt", std::make_unique<ChatGPTProvider>());
 
-    // Gemini / Ollama 待扩展
-    // _llmManager->registerProvider("gemini",  std::make_unique<GeminiProvider>());
-    // _llmManager->registerProvider("ollama",  std::make_unique<OllamaProvider>());
+    // Gemini
+    _llmManager->registerProvider("gemini",  std::make_unique<GeminiProvider>());
+
+    // Ollama
+    _llmManager->registerProvider("ollama",  std::make_unique<OllamaLLMProvider>());
 
     INFO("All providers registered.");
 }

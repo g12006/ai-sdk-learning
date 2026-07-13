@@ -17,10 +17,20 @@
 ✅ ChatGPTProvider   → sendMessage + sendMessageStream 完整走读
                        全量：POST /v1/responses → output[0].content[0].text
                        流式：SSE event/data 解析 → response.output_text.delta → callback
-⏳ GeminiProvider    → 待学
-⏳ OllamaProvider    → 待学
-⏳ SessionManager    → 待学
-⏳ ChatSDK           → 待学
+✅ GeminiProvider    → sendMessage + sendMessageStream 完整走读
+                       OpenAI 兼容端点 /v1beta/openai/chat/completions
+                       流式：SSE data 解析 → choices[0].delta.content → callback
+✅ OllamaLLMProvider → sendMessage + sendMessageStream 完整走读
+                       本地端点 /api/chat，按 \n 分隔 JSON 行
+                       流式：每行 JSON → message.content → callback，done 标记结束
+✅ SessionManager    → 会话生命周期 + SQLite 持久化恢复
+                       createSession / getSession / deleteSession / getHistroyMessages
+✅ ChatSDK           → Facade 模式统一入口
+                       initModels → registerAllProvider + initProviders
+                       sendMessage / sendMessageStream 双通道
+✅ ChatServer        → httplib HTTP 服务 + SSE 推流
+                       7 个 REST 路由 + gflags 命令行 / 环境变量配置
+✅ testLLM           → 12 个测试用例（8 单元 + 4 真实 API，无 Key 时 GTEST_SKIP）
 ```
 
 ## 目录结构
@@ -30,11 +40,14 @@ ai-sdk-learning/
 ├── CMakeLists.txt                 # 顶层构建配置
 ├── README.md
 ├── sdk/
+│   ├── CMakeLists.txt             # SDK 静态库
 │   ├── include/
 │   │   ├── common.h              # 5 个数据结构
 │   │   ├── LLMProvider.h         # 抽象基类
 │   │   ├── DeepSeekProvider.h    # DeepSeek-chat
 │   │   ├── ChatGPTProvider.h     # GPT-4o-mini (Responses API)
+│   │   ├── GeminiProvider.h      # Gemini (OpenAI 兼容)
+│   │   ├── OllamaLLMProvider.h   # Ollama 本地模型
 │   │   ├── LLMManager.h          # 模型管理器
 │   │   ├── ChatSDK.h             # 统一对外门面
 │   │   ├── SessionManager.h      # 会话管理
@@ -43,14 +56,23 @@ ai-sdk-learning/
 │   └── src/
 │       ├── DeepSeekProvider.cpp   # 全量 + 流式
 │       ├── ChatGPTProvider.cpp    # 全量 + SSE 流式
+│       ├── GeminiProvider.cpp      # 全量 + 流式
+│       ├── OllamaLLMProvider.cpp   # 全量 + 行式流式
 │       ├── LLMManager.cpp         # 查表转发
 │       ├── ChatSDK.cpp            # 门面实现
 │       ├── SessionManager.cpp     # 会话管理
 │       ├── DataManager.cpp        # 持久化
 │       └── util/myLog.cpp         # 日志工具
+├── ChatServer/
+│   ├── CMakeLists.txt             # 服务器构建配置
+│   ├── ChatServer.h              # HTTP 服务 + 路由
+│   ├── ChatServer.cpp            # SSE 流式响应
+│   └── main.cpp                  # gflags 入口
 └── test/
     ├── CMakeLists.txt             # 测试构建配置
-    └── testLLM.cpp                # 单元测试 + 集成测试
+    ├── testLLM.cpp                # 单元测试 + 集成测试
+    └── testSQLite/
+        └── testSqlite3.cpp        # SQLite 持久化测试
 ```
 
 ## ChatGPTProvider 要点
@@ -70,19 +92,39 @@ OpenAI 的 Responses API（`/v1/responses`）与 Chat Completions API 有显著�
 ## 构建 & 测试
 
 ```bash
-# 构建测试
+# 仅构建 SDK 静态库
 mkdir build && cd build
-cmake .. -DBUILD_TESTS=ON
+cmake ..
 make
 
-# 运行测试
+# 构建 SDK + 测试 + ChatServer
+cmake .. -DBUILD_TESTS=ON -DBUILD_CHAT_SERVER=ON
+make -j4
+
+# 安装 SDK 头文件到 /usr/local/include/ai_chat_sdk/（ChatServer 依赖此路径）
+make install
+
+# 运行单元测试（无 API Key 时真实 API 测试自动 SKIP）
 ./test/testLLM
 
-# 运行真实 API 测试（需设置环境变量）
+# 运行真实 API 测试（设置环境变量后启用）
 export deepseek_apikey="sk-xxxxx"
 export chatgpt_apikey="sk-xxxxx"
-# 然后将 test/testLLM.cpp 中的 #if 0 改为 #if 1
+export gemini_apikey="xxxxx"
+
+# 启动 ChatServer（至少提供一个 API Key）
+export deepseek_apikey="sk-xxxxx"
+./AIChatServer --port=8080
 ```
 
+测试覆盖：
+- 8 个单元测试（无网络依赖）：DeepSeekProvider / ChatGPTProvider 的 initModel / isAvailable / sendMessage
+- 4 个真实 API 测试（无环境变量时 GTEST_SKIP 自动跳过，不失败）：
+  - DeepSeekProviderTest.SendMessageStreamRealApi
+  - ChatGPTProviderTest.SendMessageStreamRealApi
+  - GeminiProviderTest.SendMessageStreamRealApi
+  - OllamaLLMProviderTest.SendMessageStreamLocal（无本地 Ollama 服务时 SKIP）
+
 ---
-📅 更新：2026-07-05
+
+📅 更新：2026-07-13
