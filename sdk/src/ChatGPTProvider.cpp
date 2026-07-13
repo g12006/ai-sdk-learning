@@ -90,12 +90,12 @@ std::string ChatGPTProvider::sendMessage(const std::vector<Message>& messages, c
     httplib::Client client(_endpoint.c_str());
     client.set_connection_timeout(30, 0);
     client.set_read_timeout(60, 0);
-    client.set_proxy("127.0.0.1", 7890);
+    // 代理已移除，如需代理请通过 ConfigLoader 配置后在调用层应用
 
     // 设置请求头参数
     httplib::Headers headers = {
-        {"Authorization", "Bearer " + _apiKey}
-        //{"Content-Type", "application/json"}
+        {"Authorization", "Bearer " + _apiKey},
+        {"Content-Type", "application/json"}
     };
 
     // 5. 发送POST请求
@@ -185,7 +185,7 @@ std::string ChatGPTProvider::sendMessageStream(const std::vector<Message>& messa
     httplib::Client client(_endpoint.c_str());
     client.set_connection_timeout(60, 0);
     client.set_read_timeout(300, 0);
-    client.set_proxy("127.0.0.1", 7890);
+    // 代理已移除，如需代理请通过 ConfigLoader 配置后在调用层应用
 
     // 设置请求头参数
     httplib::Headers headers = {
