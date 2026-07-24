@@ -1,5 +1,6 @@
 #include "../include/OllamaLLMProvider.h"
 #include "../include/util/myLog.h"
+#include "../include/util/HttpProxy.h"
 #include <jsoncpp/json/json.h>
 #include <jsoncpp/json/reader.h>
 #include <jsoncpp/json/value.h>
@@ -96,6 +97,7 @@ namespace ai_chat_sdk{
 
         // 创建http客户端
         httplib::Client client(_endpoint.c_str());
+        applyProxyFromEnv(client, _endpoint);
         client.set_connection_timeout(30, 0);
         client.set_read_timeout(60, 0);
         // 设置请求头
@@ -186,6 +188,7 @@ namespace ai_chat_sdk{
 
         // 创建http客户端
         httplib::Client client(_endpoint.c_str());
+        applyProxyFromEnv(client, _endpoint);
         client.set_connection_timeout(30, 0);
         client.set_read_timeout(300, 0);
         // 设置请求头

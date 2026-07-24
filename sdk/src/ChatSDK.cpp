@@ -34,22 +34,26 @@ ChatSDK::~ChatSDK() = default;
 
 // ----------------------------------------------------------------
 // 注册所有支持的 LLM Provider
+//
+// 注意：注册 key 必须与后续 initModel() 传入的 modelName 一致，
+// 否则 LLMManager::_providers 查找不到对应 provider。
+// 云端 API 模型名称固定，直接用模型名注册；
+// Ollama 模型名由运行时配置决定，在 initOllamaModelProviders() 中动态注册。
 // ----------------------------------------------------------------
 void ChatSDK::registerAllProvider()
 {
-    // DeepSeek
-    _llmManager->registerProvider("deepseek", std::make_unique<DeepSeekProvider>());
+    // DeepSeek - 模型名: deepseek-chat
+    _llmManager->registerProvider("deepseek-chat", std::make_unique<DeepSeekProvider>());
 
-    // ChatGPT
-    _llmManager->registerProvider("chatgpt", std::make_unique<ChatGPTProvider>());
+    // ChatGPT - 模型名: gpt-4o-mini
+    _llmManager->registerProvider("gpt-4o-mini", std::make_unique<ChatGPTProvider>());
 
-    // Gemini
-    _llmManager->registerProvider("gemini",  std::make_unique<GeminiProvider>());
+    // Gemini - 模型名: gemini-2.0-flash
+    _llmManager->registerProvider("gemini-2.0-flash", std::make_unique<GeminiProvider>());
 
-    // Ollama
-    _llmManager->registerProvider("ollama",  std::make_unique<OllamaLLMProvider>());
+    // Ollama: 模型名动态，在 initOllamaModelProviders() 中按需注册
 
-    INFO("All providers registered.");
+    INFO("All static providers registered.");
 }
 
 // ----------------------------------------------------------------
@@ -97,10 +101,17 @@ bool ChatSDK::initAPIModelProviders(const std::string& modelName, const APIConfi
 
 // ----------------------------------------------------------------
 // 初始化本地 Ollama 模型
+//
+// Ollama 的模型名由运行时配置决定（如 deepseek-r1:1.5b），
+// 无法在 registerAllProvider() 中预注册，因此在此按需注册。
 // ----------------------------------------------------------------
 bool ChatSDK::initOllamaModelProviders(const std::string& modelName, const OllamaConfig& config)
 {
+    // 按需注册 Ollama Provider（模型名动态）
+    _llmManager->registerProvider(modelName, std::make_unique<OllamaLLMProvider>());
+
     std::map<std::string, std::string> params;
+    params["model_name"]  = config._modelName;
     params["endpoint"]    = config._endpoint;
     params["model_desc"]  = config._modelDesc;
     params["temperature"] = std::to_string(config._temperature);

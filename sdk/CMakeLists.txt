@@ -38,7 +38,7 @@ target_compile_definitions(${SDK_NAME} PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
 
 
 # 链接库
-target_link_libraries(${SDK_NAME} PUBLIC jsoncpp fmt  spdlog sqlite3 OpenSSL::SSL OpenSSL::Crypto) 
+target_link_libraries(${SDK_NAME} PUBLIC cpp-httplib jsoncpp fmt  spdlog sqlite3 OpenSSL::SSL OpenSSL::Crypto)
 
 # 安装规则 拷贝静态库到系统目录下  /usr/local/lib
 install(TARGETS ${SDK_NAME}

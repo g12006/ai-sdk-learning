@@ -36,4 +36,4 @@ include_directories(${OPENSSL_INCLUDE_DIR})
 target_compile_definitions(testLLM PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
 
 # 链接库
-target_link_libraries(testLLM jsoncpp fmt spdlog gtest OpenSSL::SSL OpenSSL::Crypto sqlite3)
+target_link_libraries(testLLM cpp-httplib jsoncpp fmt spdlog gtest OpenSSL::SSL OpenSSL::Crypto sqlite3)

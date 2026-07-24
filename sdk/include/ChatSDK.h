@@ -151,11 +151,11 @@ private:
     /**
      * @brief 注册所有支持的 LLM Provider
      *
-     * 向 _llmManager 依次注册：
-     *  - DeepSeekProvider  → "deepseek"
-     *  - ChatGPTProvider   → "chatgpt"
-     *  - GeminiProvider    → "gemini"
-     *  - OllamaProvider    → "ollama"
+     * 向 _llmManager 依次注册（key = 模型名，须与 initModel 传入的 modelName 一致）：
+     *  - DeepSeekProvider  → "deepseek-chat"
+     *  - ChatGPTProvider   → "gpt-4o-mini"
+     *  - GeminiProvider    → "gemini-2.0-flash"
+     *  - OllamaLLMProvider → 动态模型名，在 initOllamaModelProviders() 中按需注册
      */
     void registerAllProvider();
 

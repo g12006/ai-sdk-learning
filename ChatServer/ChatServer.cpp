@@ -11,40 +11,56 @@
 namespace ai_chat_server{
 
 ChatServer::ChatServer(const ServerConfig& config){
+    _config = config;
     _chatSDK = std::make_shared<ai_chat_sdk::ChatSDK>();
 
-    auto deepseekConfig = std::make_shared<ai_chat_sdk::APIConfig>();
-    deepseekConfig->_modelName = "deepseek-chat";
-    deepseekConfig->_apiKey = config.deepseekAPIKey;
-    deepseekConfig->_temperature = config.temperature;
-    deepseekConfig->_maxTokens = config.maxTokens;
+    std::vector<std::shared_ptr<ai_chat_sdk::Config>> modelConfigs;
 
-    // gpt-4o-mini
-    auto chatGPTConfig = std::make_shared<ai_chat_sdk::APIConfig>();
-    chatGPTConfig->_modelName = "gpt-4o-mini";
-    chatGPTConfig->_apiKey = config.chatGPTAPIKey;
-    chatGPTConfig->_temperature = config.temperature;
-    chatGPTConfig->_maxTokens = config.maxTokens;
+    // DeepSeek - 仅在配置了 API Key 时添加
+    if(!config.deepseekAPIKey.empty()){
+        auto deepseekConfig = std::make_shared<ai_chat_sdk::APIConfig>();
+        deepseekConfig->_modelName = "deepseek-chat";
+        deepseekConfig->_apiKey = config.deepseekAPIKey;
+        deepseekConfig->_temperature = config.temperature;
+        deepseekConfig->_maxTokens = config.maxTokens;
+        modelConfigs.push_back(deepseekConfig);
+    }
 
+    // ChatGPT - 仅在配置了 API Key 时添加
+    if(!config.chatGPTAPIKey.empty()){
+        auto chatGPTConfig = std::make_shared<ai_chat_sdk::APIConfig>();
+        chatGPTConfig->_modelName = "gpt-4o-mini";
+        chatGPTConfig->_apiKey = config.chatGPTAPIKey;
+        chatGPTConfig->_temperature = config.temperature;
+        chatGPTConfig->_maxTokens = config.maxTokens;
+        modelConfigs.push_back(chatGPTConfig);
+    }
 
-    // gemini-2.0-flash
-    auto geminiConfig = std::make_shared<ai_chat_sdk::APIConfig>();
-    geminiConfig->_modelName = "gemini-2.0-flash";
-    geminiConfig->_apiKey = config.geminiAPIKey;
-    geminiConfig->_temperature = config.temperature;
-    geminiConfig->_maxTokens = config.maxTokens;
+    // Gemini - 仅在配置了 API Key 时添加
+    if(!config.geminiAPIKey.empty()){
+        auto geminiConfig = std::make_shared<ai_chat_sdk::APIConfig>();
+        geminiConfig->_modelName = "gemini-2.0-flash";
+        geminiConfig->_apiKey = config.geminiAPIKey;
+        geminiConfig->_temperature = config.temperature;
+        geminiConfig->_maxTokens = config.maxTokens;
+        modelConfigs.push_back(geminiConfig);
+    }
 
-    // Ollama本地接入deepseek-r1:1.5b
-    auto ollamaConfig = std::make_shared<ai_chat_sdk::OllamaConfig>();
-    ollamaConfig->_modelName = config.ollamaModelName;
-    ollamaConfig->_modelDesc = config.ollamaModelDesc;
-    ollamaConfig->_endpoint = config.ollamaEndpoint;
-    ollamaConfig->_temperature = config.temperature;
-    ollamaConfig->_maxTokens = config.maxTokens;
+    // Ollama - 仅在配置了模型名称时添加
+    if(!config.ollamaModelName.empty()){
+        auto ollamaConfig = std::make_shared<ai_chat_sdk::OllamaConfig>();
+        ollamaConfig->_modelName = config.ollamaModelName;
+        ollamaConfig->_modelDesc = config.ollamaModelDesc;
+        ollamaConfig->_endpoint = config.ollamaEndpoint;
+        ollamaConfig->_temperature = config.temperature;
+        ollamaConfig->_maxTokens = config.maxTokens;
+        modelConfigs.push_back(ollamaConfig);
+    }
 
-    std::vector<std::shared_ptr<ai_chat_sdk::Config>> modelConfigs = {
-        deepseekConfig, chatGPTConfig, geminiConfig, ollamaConfig
-    };
+    if(modelConfigs.empty()){
+        ERR("No model configured, ChatServer init Failed!!!");
+        return;
+    }
 
     INFO("start init ChatSDK models...");
     if(!_chatSDK->initModels(modelConfigs)){

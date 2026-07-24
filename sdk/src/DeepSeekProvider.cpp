@@ -1,5 +1,6 @@
 #include "../include/DeepSeekProvider.h"
 #include "../include/util/myLog.h"
+#include "../include/util/HttpProxy.h"
 #include <cstdint>
 #include <jsoncpp/json/json.h>
 #include <httplib.h>
@@ -88,6 +89,7 @@ namespace ai_chat_sdk{
 
         // 5. 使用cpp-httplib库构造HTTP客户端
         httplib::Client client(_endpoint.c_str());
+        applyProxyFromEnv(client, _endpoint);
         client.set_connection_timeout(30, 0);     // 连接超时时间为30秒
         client.set_read_timeout(60, 0);           // 设置超时时间为60秒
 
@@ -179,6 +181,7 @@ namespace ai_chat_sdk{
 
         // 5. 使用cpp-httplib库构造HTTP客户端
         httplib::Client client(_endpoint.c_str());
+        applyProxyFromEnv(client, _endpoint);
         client.set_connection_timeout(30, 0);     // 连接超时时间为30秒
         client.set_read_timeout(300, 0);          // 流式响应需要更长的时间，设置超时时间为300秒
 

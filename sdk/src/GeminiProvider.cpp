@@ -1,5 +1,6 @@
 #include "../include/GeminiProvider.h"
 #include "../include/util/myLog.h"
+#include "../include/util/HttpProxy.h"
 
 #include <httplib.h>
 #include <jsoncpp/json/forwards.h>
@@ -98,6 +99,7 @@ namespace ai_chat_sdk{
 
             // 创建HTTP客户端
             httplib::Client client(_endpoint);
+            applyProxyFromEnv(client, _endpoint);
             client.set_connection_timeout(30, 0);
             client.set_read_timeout(60, 0);
 
@@ -198,6 +200,7 @@ namespace ai_chat_sdk{
 
             // 创建HTTP客户端
             httplib::Client client(_endpoint);
+            applyProxyFromEnv(client, _endpoint);
             client.set_connection_timeout(60, 0);
             client.set_read_timeout(300, 0);
 

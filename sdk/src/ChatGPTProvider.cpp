@@ -1,5 +1,6 @@
 #include "../include/ChatGPTProvider.h"
 #include "../include/util/myLog.h"
+#include "../include/util/HttpProxy.h"
 #include <cstdint>
 #include <jsoncpp/json/json.h>
 #include <httplib.h>
@@ -88,6 +89,7 @@ std::string ChatGPTProvider::sendMessage(const std::vector<Message>& messages, c
 
     // 4. 创建HTTP客户端
     httplib::Client client(_endpoint.c_str());
+    applyProxyFromEnv(client, _endpoint);
     client.set_connection_timeout(30, 0);
     client.set_read_timeout(60, 0);
     // 代理已移除，如需代理请通过 ConfigLoader 配置后在调用层应用
@@ -183,6 +185,7 @@ std::string ChatGPTProvider::sendMessageStream(const std::vector<Message>& messa
 
     // 4. 创建HTTP客户端
     httplib::Client client(_endpoint.c_str());
+    applyProxyFromEnv(client, _endpoint);
     client.set_connection_timeout(60, 0);
     client.set_read_timeout(300, 0);
     // 代理已移除，如需代理请通过 ConfigLoader 配置后在调用层应用
