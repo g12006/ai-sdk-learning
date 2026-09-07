@@ -1,36 +1,33 @@
-# AI SDK 项目学习
+# C++ AI 多模型接入 SDK
 
-> 基于 `zhibite-edu/ai-model-acess-tech`，逐层走读源码
+用 C++17 从零实现的 LLM 统一接入 SDK 与聊天服务：以 **Provider 抽象层**屏蔽 DeepSeek / ChatGPT / Gemini / Ollama 四家模型的 API 差异，上层业务面向统一接口编程；配套 ChatServer（httplib HTTP + SSE 推流）与会话 SQLite 持久化，含 gtest 单元/集成测试。
 
-## 学习进度
+**核心链路**：HTTP 请求进入 ChatServer → ChatSDK 门面经 SessionManager 装配历史消息 → LLMManager 按模型名查表路由到 Provider → Provider 组装各家 API 请求（全量 / 流式）→ 流式增量经 callback 逐帧上抛 → ChatServer 以 SSE 转推客户端，会话落库 SQLite 可恢复。
+
+**架构亮点**：
+
+- **Provider 抽象 + 查表转发（M×N → M+N）**：`LLMProvider` 基类定义 6 个纯虚接口，`LLMManager` 持有 `map<string, unique_ptr<LLMProvider>>` 查表转发；新增模型只需实现一个 Provider 子类，业务代码零改动
+- **四种流式协议的统一分帧**：OpenAI 系 SSE（`\n\n` 分帧 + `[DONE]` 哨兵）、ChatGPT Responses API（`event:`/`data:` 双行、`response.completed` 收尾）、Ollama 行式 JSON（`\n` 分隔 + `done` 字段）——全部收敛为同一套 `callback(chunk, isLast)` 上层接口
+- **Facade + 会话持久化**：`ChatSDK` 门面统一初始化/收发入口；`SessionManager` + `DataManager`（SQLite）支持会话恢复；真实 API 测试无 Key 时 `GTEST_SKIP` 自动跳过，CI 友好
+
+## 架构
 
 ```
-✅ common.h          → 5 个核心数据结构
-                       Message, Config(虚拟析构), APIConfig, OllamaConfig, Session, ModelInfo
-✅ LLMProvider.h     → 抽象基类（6 个纯虚函数）
-                       initModel / isAvailable / getModelName / getModelDesc / sendMessage / sendMessageStream
-✅ LLMManager        → 查表转发
-                       map<string, unique_ptr<LLMProvider>>，6 个方法全部 ≤17 行
-✅ DeepSeekProvider  → sendMessage + sendMessageStream 完整走读
-                       全量：POST /v1/chat/completions → choices[0].message.content
-                       流式：buffer + \n\n → [DONE] → choices[0].delta.content → callback
-✅ ChatGPTProvider   → sendMessage + sendMessageStream 完整走读
-                       全量：POST /v1/responses → output[0].content[0].text
-                       流式：SSE event/data 解析 → response.output_text.delta → callback
-✅ GeminiProvider    → sendMessage + sendMessageStream 完整走读
-                       OpenAI 兼容端点 /v1beta/openai/chat/completions
-                       流式：SSE data 解析 → choices[0].delta.content → callback
-✅ OllamaLLMProvider → sendMessage + sendMessageStream 完整走读
-                       本地端点 /api/chat，按 \n 分隔 JSON 行
-                       流式：每行 JSON → message.content → callback，done 标记结束
-✅ SessionManager    → 会话生命周期 + SQLite 持久化恢复
-                       createSession / getSession / deleteSession / getHistroyMessages
-✅ ChatSDK           → Facade 模式统一入口
-                       initModels → registerAllProvider + initProviders
-                       sendMessage / sendMessageStream 双通道
-✅ ChatServer        → httplib HTTP 服务 + SSE 推流
-                       7 个 REST 路由 + gflags 命令行 / 环境变量配置
-✅ testLLM           → 12 个测试用例（8 单元 + 4 真实 API，无 Key 时 GTEST_SKIP）
+┌─────────────────────────────────────────────────┐
+│                ChatServer (httplib)              │
+│        7 个 REST 路由 + SSE 流式推流              │
+├─────────────────────────────────────────────────┤
+│              ChatSDK (Facade 统一入口)            │
+│   SessionManager ── DataManager (SQLite 持久化)   │
+├─────────────────────────────────────────────────┤
+│                  LLMManager                      │
+│      map<string, unique_ptr<LLMProvider>> 查表   │
+├─────────┬──────────┬──────────┬─────────────────┤
+│ DeepSeek │ ChatGPT  │ Gemini   │ Ollama(本地)     │
+│ Provider │ Provider │ Provider │ Provider        │
+├─────────┴──────────┴──────────┴─────────────────┤
+│        httplib(HTTP 客户端/服务端) + jsoncpp      │
+└─────────────────────────────────────────────────┘
 ```
 
 ## 目录结构
@@ -42,11 +39,11 @@ ai-sdk-learning/
 ├── sdk/
 │   ├── CMakeLists.txt             # SDK 静态库
 │   ├── include/
-│   │   ├── common.h              # 5 个数据结构
-│   │   ├── LLMProvider.h         # 抽象基类
+│   │   ├── common.h              # 核心数据结构: Message/Config/APIConfig/OllamaConfig/Session/ModelInfo
+│   │   ├── LLMProvider.h         # 抽象基类（6 个纯虚函数）
 │   │   ├── DeepSeekProvider.h    # DeepSeek-chat
 │   │   ├── ChatGPTProvider.h     # GPT-4o-mini (Responses API)
-│   │   ├── GeminiProvider.h      # Gemini (OpenAI 兼容)
+│   │   ├── GeminiProvider.h      # Gemini (OpenAI 兼容端点)
 │   │   ├── OllamaLLMProvider.h   # Ollama 本地模型
 │   │   ├── LLMManager.h          # 模型管理器
 │   │   ├── ChatSDK.h             # 统一对外门面
@@ -54,7 +51,7 @@ ai-sdk-learning/
 │   │   ├── DataManager.h         # SQLite 持久化
 │   │   └── util/myLog.h          # 日志工具
 │   └── src/
-│       ├── DeepSeekProvider.cpp   # 全量 + 流式
+│       ├── DeepSeekProvider.cpp   # 全量 + SSE 流式
 │       ├── ChatGPTProvider.cpp    # 全量 + SSE 流式
 │       ├── GeminiProvider.cpp      # 全量 + 流式
 │       ├── OllamaLLMProvider.cpp   # 全量 + 行式流式
@@ -75,19 +72,19 @@ ai-sdk-learning/
         └── testSqlite3.cpp        # SQLite 持久化测试
 ```
 
-## ChatGPTProvider 要点
+## 流式协议差异（Provider 层已屏蔽）
 
 OpenAI 的 Responses API（`/v1/responses`）与 Chat Completions API 有显著差异：
 
-| 对比项 | Chat Completions (DeepSeek) | Responses API (ChatGPT) |
-|--------|---------------------------|------------------------|
-| 端点 | `/v1/chat/completions` | `/v1/responses` |
-| 消息字段 | `messages` | `input` |
-| 最大 Token | `max_tokens` | `max_output_tokens` |
-| 响应路径 | `choices[0].message.content` | `output[0].content[0].text` |
-| 流式协议 | `data: {...}\n\n` + `[DONE]` | SSE: `event:` / `data:` 分行 |
-| 流式增量事件 | `choices[0].delta.content` | `response.output_text.delta` → `delta` |
-| 流式结束事件 | `data: [DONE]` | `event: response.completed` |
+| 对比项 | Chat Completions (DeepSeek/Gemini) | Responses API (ChatGPT) | Ollama |
+|--------|-----------------------------------|------------------------|--------|
+| 端点 | `/v1/chat/completions` | `/v1/responses` | `/api/chat`（本地） |
+| 消息字段 | `messages` | `input` | `messages` |
+| 最大 Token | `max_tokens` | `max_output_tokens` | — |
+| 全量响应路径 | `choices[0].message.content` | `output[0].content[0].text` | `message.content` |
+| 流式分帧 | `data: {...}\n\n` | SSE: `event:` / `data:` 双行 | `\n` 分隔的 JSON 行 |
+| 流式增量字段 | `choices[0].delta.content` | `response.output_text.delta` | `message.content`（逐行） |
+| 流式结束标记 | `data: [DONE]` | `event: response.completed` | `done: true` 字段 |
 
 ## 构建 & 测试
 
@@ -125,6 +122,11 @@ export deepseek_apikey="sk-xxxxx"
   - GeminiProviderTest.SendMessageStreamRealApi
   - OllamaLLMProviderTest.SendMessageStreamLocal（无本地 Ollama 服务时 SKIP）
 
----
+## 依赖
 
-📅 更新：2026-07-13
+- cpp-httplib、jsoncpp、sqlite3、gflags、googletest
+- C++17 / CMake
+
+## License
+
+MIT
